@@ -7,16 +7,27 @@ from spacy.language import Language
 from spacy.tokens import Doc
 import subprocess
 import sys
+import os
 
 @st.cache_resource
 def load_spacy_model():
-    # Descargar el modelo de spaCy si no está instalado
+    """Carga el modelo de spaCy o usa uno más pequeño si el grande falla."""
     try:
-        nlp = spacy.load("es_core_news_lg")
+        # Primero intentar cargar el modelo grande
+        return spacy.load("es_core_news_lg")
     except OSError:
-        subprocess.check_call([sys.executable, "-m", "spacy", "download", "es_core_news_lg"])
-        nlp = spacy.load("es_core_news_lg")
-    return nlp
+        try:
+            # Si falla, intentar descargar el modelo mediano
+            st.warning("Descargando modelo de lenguaje español (puede tardar unos minutos)...")
+            subprocess.run([sys.executable, "-m", "spacy", "download", "es_core_news_md"], 
+                         check=True, capture_output=True)
+            return spacy.load("es_core_news_md")
+        except (subprocess.CalledProcessError, OSError):
+            st.error("No se pudo cargar el modelo de lenguaje. Usando modelo pequeño.")
+            # Si todo falla, usar el modelo pequeño
+            subprocess.run([sys.executable, "-m", "spacy", "download", "es_core_news_sm"], 
+                         check=True, capture_output=True)
+            return spacy.load("es_core_news_sm")
 
 # Configuración de la página
 st.set_page_config(
