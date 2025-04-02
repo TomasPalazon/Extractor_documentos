@@ -8,9 +8,15 @@ from spacy.tokens import Doc
 import subprocess
 import sys
 
-# Descargar el modelo de spaCy si no está instalado
-if not spacy.util.is_package("es_core_news_lg"):
-    subprocess.check_call([sys.executable, "-m", "spacy", "download", "es_core_news_lg"])
+@st.cache_resource
+def load_spacy_model():
+    # Descargar el modelo de spaCy si no está instalado
+    try:
+        nlp = spacy.load("es_core_news_lg")
+    except OSError:
+        subprocess.check_call([sys.executable, "-m", "spacy", "download", "es_core_news_lg"])
+        nlp = spacy.load("es_core_news_lg")
+    return nlp
 
 # Configuración de la página
 st.set_page_config(
@@ -21,7 +27,7 @@ st.set_page_config(
 class DocumentExtractor:
     def __init__(self):
         """Inicializa el extractor de documentos."""
-        self.nlp = None
+        self.nlp = load_spacy_model()
         self.label_map = {
             'PER': 'NOMBRE',  # Personas
             'LOC': 'DIR',     # Ubicaciones
@@ -29,12 +35,6 @@ class DocumentExtractor:
             'MISC': 'MISC'    # Otros
         }
     
-    def ensure_model_loaded(self):
-        """Asegura que el modelo está cargado, cargándolo si es necesario."""
-        if self.nlp is None:
-            with st.spinner('Cargando modelo de NER...'):
-                self.nlp = spacy.load("es_core_news_lg")  # Modelo grande en español
-
     def _extract_entities_with_spacy(self, text: str) -> dict:
         """Extrae entidades usando spaCy."""
         entities = {'NOMBRE': [], 'DIR': [], 'ORG': [], 'MISC': []}
@@ -228,7 +228,6 @@ class DocumentExtractor:
 
     def extract_information(self, text):
         """Extrae toda la información relevante del documento."""
-        self.ensure_model_loaded()
         
         # Normalizar el texto
         text = re.sub(r'\s+', ' ', text)
